@@ -14,10 +14,12 @@ AS
 											@Inicio DATETIME = GETDATE()
 
 									SELECT * FROM Pedido
+									SELECT * FROM Rastreio
 
 									EXEC @Ret = [dbo].[SP_RealizaPedido]1, 1
 									
 									SELECT * FROM Pedido
+									SELECT * FROM Rastreio
 
 									SELECT @Ret Retorno
 
@@ -25,10 +27,14 @@ AS
 
 			Retornos............: 0 - Pedido inserido com sucesso.
 								  1 - Cliente ou endereço não existem ou este cliente não possui este endereço.
-								  2 - Erro ao inserir pedido
+								  2 - Erro ao inserir pedido.
+								  3 - Erro ao atribuir rastreio.
 		*/	
 	BEGIN
 	
+		DECLARE @IdPedidoInserido INT,
+				@DataAtual DATETIME = GETDATE()
+
 		IF NOT EXISTS	(
 							SELECT TOP 1 1
 								FROM [dbo].[FNC_ListaEnderecoCliente](@IdCliente) ec
@@ -37,10 +43,19 @@ AS
 			RETURN 1
 
 		INSERT INTO Pedido (IdCliente, DataPedido, ValorTotal)
-					VALUES (@IdCliente, GETDATE(), 0)
+					VALUES (@IdCliente, @DataAtual, 0)
+
+		SET @IdPedidoInserido = SCOPE_IDENTITY()
 
 		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
 			RETURN 2
+
+		-- IdStatusRastreio 7 = Aguardando produtos
+		INSERT INTO Rastreio (IdPedido, IdStatusRastreio, Data)
+					VALUES (@IdPedidoInserido, 7, @DataAtual)
+
+		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
+			RETURN 3
 
 		RETURN 0
 
