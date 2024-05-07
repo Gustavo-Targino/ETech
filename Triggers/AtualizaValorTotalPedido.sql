@@ -22,7 +22,7 @@ AS
 										SELECT * FROM Produto
 
 										EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 10
-										EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 5
+										EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 832
 							
 										SELECT * FROM PedidoProduto
 										SELECT * FROM Pedido
@@ -73,19 +73,31 @@ AS
 												THEN -1 
 												ELSE  1 
 										  END) 
+		
+		BEGIN TRANSACTION
+			
+			BEGIN TRY
+				UPDATE Pedido 
+					SET ValorTotal = ( ValorTotal + @Preco)
+						WHERE Id = @IdPedido
+			END TRY
 
-		UPDATE Pedido 
-			SET ValorTotal = ( ValorTotal + @Preco)
-				WHERE Id = @IdPedido
+			BEGIN CATCH
+				ROLLBACK TRANSACTION
+				RAISERROR('Erro ao atualizar valor total do pedido ao adicionar produto', 16, 1);
+			END CATCH
 
-		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
-			RAISERROR('Erro ao atualizar valor total do pedido ao adicionar produto', 16, 1);
+			BEGIN TRY
+				UPDATE Produto
+				SET Estoque = Estoque + @Quantidade
+					WHERE Id = @IdProduto
+			END TRY
 
-		UPDATE Produto
-			SET Estoque = Estoque + @Quantidade
-				WHERE Id = @IdProduto
+			BEGIN CATCH
+				ROLLBACK TRANSACTION
+				RAISERROR('Erro ao atualizar estoque do produto', 16, 1);
+			END CATCH
 
-		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
-			RAISERROR('Erro ao atualizar estoque do produto', 16, 1);
+		COMMIT TRANSACTION
 
 	END
