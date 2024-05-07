@@ -1,17 +1,16 @@
-CREATE OR ALTER TRIGGER [dbo].[TRG_InsertDelete_PedidoProduto]
+CREATE OR ALTER TRIGGER [dbo].[TRG_AtualizaPrecoPedido_QuantidadeProduto]
 	ON [dbo].[PedidoProduto]
 	FOR INSERT, DELETE
 AS
 		/*
 			Documentação
-			Arquivo Fonte........: TRG_AtualizaValorTotalPedido.sql
+			Arquivo Fonte........: TRG_AtualizaPrecoPedido_QuantidadeProduto.sql
 			Objetivo.............: Atualizar estoque do produto e valor total do pedido após inserção ou remoção de um novo produto no pedido
 			Autor................: Gustavo Targino
 			Data.................: 06/05/2024
 			Ex...................: BEGIN TRAN
 									
-										DECLARE @Ret INT,
-												@IdPedido INT
+										DECLARE @IdPedido INT
 									
 										INSERT INTO Pedido VALUES(1, GETDATE(), 0)
 
@@ -21,9 +20,10 @@ AS
 										SELECT * FROM Pedido
 										SELECT * FROM Produto
 
-										EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 10
-										EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 832
-							
+										EXEC [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 10
+
+										EXEC [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 5
+	
 										SELECT * FROM PedidoProduto
 										SELECT * FROM Pedido
 										SELECT * FROM Produto
@@ -33,8 +33,6 @@ AS
 										SELECT * FROM PedidoProduto
 										SELECT * FROM Pedido
 										SELECT * FROM Produto
-
-										SELECT @Ret Retorno
 
 								   ROLLBACK
 		*/
@@ -78,7 +76,7 @@ AS
 			
 			BEGIN TRY
 				UPDATE Pedido 
-					SET ValorTotal = ( ValorTotal + @Preco)
+					SET ValorTotal = (ValorTotal + @Preco)
 						WHERE Id = @IdPedido
 			END TRY
 
@@ -88,9 +86,7 @@ AS
 			END CATCH
 
 			BEGIN TRY
-				UPDATE Produto
-				SET Estoque = Estoque + @Quantidade
-					WHERE Id = @IdProduto
+				EXEC [dbo].[SP_AtualizarEstoqueProduto]@IdProduto, @Quantidade
 			END TRY
 
 			BEGIN CATCH
