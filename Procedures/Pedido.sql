@@ -16,7 +16,7 @@ AS
 									SELECT * FROM Pedido
 									SELECT * FROM Rastreio
 
-									EXEC @Ret = [dbo].[SP_RealizaPedido]1, 1
+									EXEC @Ret = [dbo].[SP_RealizaPedido]2, 4
 									
 									SELECT * FROM Pedido
 									SELECT * FROM Rastreio
@@ -60,7 +60,6 @@ AS
 		RETURN 0
 
 	END
-
 GO
 
 CREATE OR ALTER PROCEDURE [dbo].[SP_InsereProdutoPedido]
@@ -104,7 +103,7 @@ AS
 		
 		IF NOT EXISTS (
 						SELECT TOP 1 1
-							FROM Pedido
+							FROM Pedido WITH(NOLOCK)
 								WHERE Id = @IdPedido
 								AND DATEDIFF(HOUR, DataPedido, GETDATE()) <= 24
 					  )
@@ -116,11 +115,168 @@ AS
 		IF @Quantidade > ISNULL([dbo].[FNC_VerificaEstoqueProduto](@IdProduto), 0)
 			RETURN 3
 
-		INSERT INTO [dbo].[PedidoProduto] (IdPedido, IdProduto, Quantidade)
-				VALUES (@IdPedido, @IdProduto, @Quantidade)
+		IF EXISTS ( 
+					SELECT TOP 1 1 
+						FROM PedidoProduto WITH(NOLOCK)
+							WHERE IdProduto = @IdProduto
+				  )
+			UPDATE [dbo].[PedidoProduto]
+				SET Quantidade = Quantidade + @Quantidade
+					WHERE IdPedido = @IdPedido
+		ELSE
+			INSERT INTO [dbo].[PedidoProduto] (IdPedido, IdProduto, Quantidade)
+					VALUES (@IdPedido, @IdProduto, @Quantidade)
 						 
 		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
 			RETURN 4
 
+
 		RETURN 0
+	END
+
+GO
+CREATE OR ALTER PROCEDURE [dbo].[SP_ExcluiProdutoPedido]
+	@IdPedido INT,
+	@IdProduto INT,
+	@Quantidade INT
+AS
+		/*
+			Documentação
+			Arquivo fonte.....: Pedido.sql
+			Objetivo..........: Excluir produto para pedido feito, até 24h após realização do pedido
+			Autor.............: Gustavo Targino
+			Data..............: 07/05/2024
+			Ex................: BEGIN TRAN
+									
+									DECLARE @Ret INT,
+											@IdPedido INT
+									
+									SELECT @IdPedido = MAX(IdPedido) FROM PedidoProduto
+									
+									SELECT * FROM PedidoProduto
+
+									EXEC @Ret = [dbo].[SP_ExcluiProdutoPedido]@IdPedido, 1, 5
+							
+									SELECT * FROM PedidoProduto
+
+									SELECT @Ret Retorno
+
+								ROLLBACK
+			Retornos..........: 0 - Produto inserido no pedido
+								1 - Este pedido não existe ou não está elegível para remover produtos
+								2 - Quantidade que deseja ser removida excede a quantidade atual do produto
+								3 - Erro ao excluir produto do pedido
+								4 - Erro ao atualizar quantidade do produto no pedido 
+
+		*/
+
+	BEGIN
+		
+		IF NOT EXISTS (
+						SELECT TOP 1 1
+							FROM Pedido WITH(NOLOCK)
+								WHERE Id = @IdPedido
+								AND DATEDIFF(HOUR, DataPedido, GETDATE()) <= 24
+					  )
+			RETURN 1
+			
+		IF @Quantidade > (
+							SELECT Quantidade
+								FROM PedidoProduto pp WITH(NOLOCK)
+									WHERE pp.IdPedido = @IdPedido
+									AND pp.IdProduto = @IdProduto
+						 )
+			RETURN 2
+
+		IF @Quantidade = (
+							SELECT Quantidade
+								FROM PedidoProduto pp WITH(NOLOCK)
+									WHERE pp.IdPedido = @IdPedido
+									AND pp.IdProduto = @IdProduto
+						 )
+			BEGIN
+				DELETE FROM [dbo].[PedidoProduto] 
+					WHERE IdPedido = @IdPedido
+					AND IdProduto = @IdProduto
+				RETURN 0
+			END
+		
+		IF @@ERROR <> 0 
+			RETURN 3
+
+		UPDATE [dbo].[PedidoProduto]
+			SET Quantidade = Quantidade - @Quantidade
+				WHERE IdPedido = @IdPedido
+				AND IdProduto = @IdProduto
+
+		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
+			RETURN 4
+
+		RETURN 0
+	END
+
+GO
+CREATE OR ALTER PROCEDURE [dbo].[SP_CancelarPedido]
+	@IdPedido INT
+AS
+		/*
+			Documentação
+				Arquivo fonte.........: Pedido.sql
+				Objetivo..............: Cancelar um pedido
+				Autor.................: Gustavo Targino
+				Data..................: 07/05/2024
+				Ex....................: BEGIN TRAN
+											
+											DECLARE @Ret INT
+
+											SELECT * FROM Rastreio WHERE IdPedido = 4
+											SELECT * FROM Produto
+
+											EXEC @Ret = [dbo].[SP_CancelarPedido] 4
+
+											SELECT * FROM Pedido 
+											SELECT * FROM Rastreio WHERE IdPedido = 4
+											SELECT * FROM Produto
+
+											SELECT @Ret Retorno
+
+										ROLLBACK
+
+				Retornos..............: 0 - Pedido cancelado com sucesso
+										1 - Esse pedido não existe
+										2 - Status do Rastreio atual do pedido não permite cancelamento
+										3 - Erro ao inserir nova fase do rastreio para o pedido
+			
+		*/
+
+	BEGIN
+		DECLARE @DataAtual DATETIME = GETDATE(),
+				@StatusRastreio INT
+
+		IF NOT EXISTS (
+						SELECT TOP 1 1
+							FROM Pedido p WITH(NOLOCK)
+							WHERE p.Id = @IdPedido
+					  )
+			RETURN 1
+
+		SELECT @StatusRastreio = r.IdStatusRastreio 
+			FROM Pedido p WITH(NOLOCK)
+				INNER JOIN Rastreio r WITH(NOLOCK)
+					ON r.IdPedido = p.Id
+			WHERE r.Data <= @DataAtual 
+			AND p.Id = @IdPedido
+			
+		IF @StatusRastreio IN (2, 3, 4, 5)
+			RETURN 2
+
+		-- IdStatusRastreio 4 = Cancelado
+		INSERT INTO [dbo].[Rastreio] (IdPedido, IdStatusRastreio, Data)
+			VALUES (@IdPedido, 4, GETDATE())
+
+		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
+			RETURN 3
+
+		RETURN 0
+
 	END

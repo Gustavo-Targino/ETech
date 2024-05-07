@@ -63,7 +63,7 @@ CREATE TABLE Rastreio (
 	Id INT IDENTITY,
 	IdPedido INT NOT NULL,
 	IdStatusRastreio TINYINT,
-	Data DATE NOT NULL,
+	Data DATETIME NOT NULL,
 	CONSTRAINT PK_Rastreio PRIMARY KEY(Id),
 	CONSTRAINT FK_PedidoRastreio FOREIGN KEY(IdPedido) REFERENCES Pedido(Id),
 	CONSTRAINT FK_IdStatusRastreioPedido FOREIGN KEY(IdStatusRastreio) REFERENCES StatusRastreio(Id)
