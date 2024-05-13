@@ -79,13 +79,20 @@ AS
 											@IdPedido INT
 									
 									INSERT INTO Pedido VALUES(1, GETDATE(), 0)
-
+									
 									SET @IdPedido = SCOPE_IDENTITY()
 
+									SELECT * FROM Pedido
 									SELECT * FROM PedidoProduto
 
 									EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 10
 							
+									SELECT * FROM Pedido
+									SELECT * FROM PedidoProduto
+
+									EXEC @Ret = [dbo].[SP_InsereProdutoPedido]@IdPedido, 1, 10
+							
+									SELECT * FROM Pedido
 									SELECT * FROM PedidoProduto
 
 									SELECT @Ret Retorno
@@ -109,25 +116,30 @@ AS
 					  )
 			RETURN 1
 			
-		IF @Quantidade < 1
+		IF @Quantidade < 0
 			RETURN 2
 
 		IF @Quantidade > ISNULL([dbo].[FNC_VerificaEstoqueProduto](@IdProduto), 0)
 			RETURN 3
-
+			
 		IF EXISTS ( 
 					SELECT TOP 1 1 
 						FROM PedidoProduto WITH(NOLOCK)
 							WHERE IdProduto = @IdProduto
+							AND IdPedido = @IdPedido
 				  )
+	
 			UPDATE [dbo].[PedidoProduto]
 				SET Quantidade = Quantidade + @Quantidade
 					WHERE IdPedido = @IdPedido
+					AND IdProduto = @IdProduto
+
 		ELSE
 			INSERT INTO [dbo].[PedidoProduto] (IdPedido, IdProduto, Quantidade)
 					VALUES (@IdPedido, @IdProduto, @Quantidade)
-						 
-		IF @@ERROR <> 0 OR @@ROWCOUNT <> 1
+						
+	
+		IF @@ERROR <> 0 
 			RETURN 4
 
 

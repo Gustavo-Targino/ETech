@@ -124,7 +124,8 @@ CREATE TABLE ProdutoFornecedor (
     IdFornecedor SMALLINT  NOT NULL,
     IdProduto INT NOT NULL,
     Quantidade INT NOT NULL,
-    PrecoCompra DECIMAL(7,2) NOT NULL
+    PrecoCompra DECIMAL(7,2) NOT NULL,
+	DataCompra DATETIME NOT NULL,
     CONSTRAINT FK_IdFornecedorProduto FOREIGN KEY (IdFornecedor) REFERENCES Fornecedor(Id),
     CONSTRAINT FK_IdProdutoFornecedor FOREIGN KEY (IdProduto) REFERENCES Produto(Id)
 );
@@ -423,3 +424,12 @@ VALUES
 INSERT INTO Rastreio (IdPedido, IdStatusRastreio, Data) 
 VALUES 
 (@PedidoID, 7, GETDATE()); -- Aguardando produtos
+
+INSERT INTO ProdutoFornecedor (IdFornecedor, IdProduto, Quantidade, PrecoCompra, DataCompra)
+		VALUES (3, 1, 69, 2500, GETDATE()-1),
+			   (2, 2, 194, 4000, GETDATE()-2),
+			   (1, 3, 298, 2.000,  GETDATE()-3),
+			   (1, 4, 399, 150,  GETDATE()-4),
+			   (5, 5, 499, 200,  GETDATE()-5),
+			   (6, 6, 599, 2000,  GETDATE()-6),
+			   (7, 7, 699, 2000,  GETDATE()-7)

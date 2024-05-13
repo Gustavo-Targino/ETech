@@ -1,6 +1,6 @@
 CREATE OR ALTER TRIGGER [dbo].[TRG_AtualizaPrecoPedido_QuantidadeProduto]
 	ON [dbo].[PedidoProduto]
-	FOR INSERT, DELETE
+	FOR INSERT, UPDATE, DELETE
 AS
 		/*
 			Documentação
@@ -44,12 +44,6 @@ AS
 				@Preco DECIMAL(8,2),
 				@Estoque INT
 
-		SELECT @IdPedido = IdPedido,
-				@IdProduto = IdProduto,
-				@Quantidade = Quantidade,
-				@Insert = 1
-			FROM INSERTED
-
 		IF EXISTS ( SELECT TOP 1 1 
 							FROM DELETED )
 				SELECT @IdPedido = IdPedido,
@@ -57,6 +51,13 @@ AS
 					   @Quantidade = Quantidade,
 					   @Insert = 0
 					FROM DELETED
+
+		SELECT @IdPedido = IdPedido,
+				@IdProduto = IdProduto,
+				@Quantidade = Quantidade,
+				@Insert = 1
+			FROM INSERTED
+
 		
 		SET @Preco = @Quantidade * ( SELECT Preco * ( CASE 
 														WHEN @Insert = 1 
@@ -76,7 +77,7 @@ AS
 			
 			BEGIN TRY
 				UPDATE Pedido 
-					SET ValorTotal = (ValorTotal + @Preco)
+					SET ValorTotal = @Preco
 						WHERE Id = @IdPedido
 			END TRY
 

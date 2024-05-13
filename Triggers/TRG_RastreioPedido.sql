@@ -33,7 +33,6 @@ AS
 				@Quantidade INT,
 				@IdProduto INT
 				
-
 		SELECT @IdPedido = IdPedido,
 			   @IdStatusRastreio = IdStatusRastreio
 			FROM INSERTED
