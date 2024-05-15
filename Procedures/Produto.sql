@@ -140,7 +140,7 @@ AS
 										SELECT * FROM Fornecedor
 										SELECT * FROM ProdutoFornecedor
 
-										EXEC @Ret = [dbo].[SP_GerarProdutoFornecedor]1, 1, 20, NULL
+										EXEC @Ret = [dbo].[SP_GerarProdutoFornecedor]1, 4, 10, NULL
 
 										SELECT * FROM Produto 
 										SELECT * FROM Fornecedor
@@ -212,5 +212,44 @@ AS
 		COMMIT TRANSACTION
 
 		RETURN 0
+
+	END
+
+GO
+CREATE OR ALTER PROCEDURE [dbo].[SP_RankProdutos]
+AS
+		/*
+			Documentação
+			Arquivo fonte......: Produto.sql
+			Objetivo...........: Listar rank dos produtos com base no número de vendas
+			Autor..............: Gustavo Targino
+			Data...............: 15/05/2024
+			Ex.................: BEGIN TRAN
+									
+									DECLARE @DataInicio DATETIME = GETDATE()
+
+									EXEC [dbo].[SP_RankProdutos]
+
+									SELECT DATEDIFF(MILLISECOND, @DataInicio, GETDATE()) Tempo
+
+								 ROLLBACK
+		*/
+
+	BEGIN
+
+		SELECT p.Nome,
+			   p.Descricao,
+			   p.Preco,
+			   SUM(pp.Quantidade) 'Unidades vendidas',
+			   RANK() OVER(ORDER BY SUM(pp.Quantidade) DESC) Posicao
+			FROM [dbo].[PedidoProduto] pp WITH(NOLOCK)
+				INNER JOIN [dbo].[Produto] p WITH(NOLOCK)
+					ON p.Id = pp.IdProduto
+				INNER JOIN [dbo].[Pedido] pe WITH(NOLOCK)
+					ON pe.Id = pp.IdPedido
+			GROUP BY p.Nome,
+					 p.Descricao,
+					 p.Preco
+			ORDER BY 'Unidades vendidas' DESC
 
 	END
