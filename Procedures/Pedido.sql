@@ -103,7 +103,6 @@ AS
 								2 - Quantidade não pode ser negativo
 								3 - Quantidade do pedido maior do que estoque ou produto inexistente
 								4 - Erro ao inserir produto no pedido 
-
 		*/
 
 	BEGIN
@@ -179,7 +178,6 @@ AS
 								2 - Quantidade que deseja ser removida excede a quantidade atual do produto
 								3 - Erro ao excluir produto do pedido
 								4 - Erro ao atualizar quantidade do produto no pedido 
-
 		*/
 
 	BEGIN
@@ -291,4 +289,51 @@ AS
 
 		RETURN 0
 
+	END
+
+GO
+CREATE OR ALTER PROCEDURE [dbo].[SP_HistoricoRastreio]
+	@IdPedido INT
+AS
+		/*
+			Documentação
+			Arquivo fonte.....: Pedido.sql
+			Objetivo..........: Listar o histórico de rastreio de um pedido
+			Autor.............: Gustavo Targino
+			Data..............: 15/05/2024
+			Ex................: BEGIN TRAN
+
+									DBCC DROPCLEANBUFFERS;
+									DBCC FREEPROCCACHE;
+
+									DECLARE @DataInicio DATETIME = GETDATE(),
+											@Ret INT
+										
+									EXEC @Ret = [dbo].[SP_HistoricoRastreio] 50
+									
+									SELECT DATEDIFF(MILLISECOND, @DataInicio, GETDATE()) Tempo,
+										@Ret Retorno
+										
+								ROLLBACK
+			Retornos..........: 0 - Dados retornados
+								1 - Esse pedido não existe
+		*/
+	BEGIN
+		IF NOT EXISTS (
+						SELECT TOP 1 1
+							FROM [dbo].[Pedido] p WITH(NOLOCK)
+								WHERE p.Id = @IdPedido
+					  )
+			RETURN 1
+
+		SELECT p.Id,
+			   sr.Nome Status,
+			   r.Data
+			FROM [dbo].[Rastreio] r WITH(NOLOCK)
+				INNER JOIN [dbo].[StatusRastreio] sr WITH(NOLOCK)
+					ON sr.Id = r.IdStatusRastreio
+				INNER JOIN [dbo].[Pedido] p WITH(NOLOCK)
+					ON p.Id = r.IdPedido
+			WHERE p.Id = @IdPedido
+			ORDER BY r.Data DESC
 	END
